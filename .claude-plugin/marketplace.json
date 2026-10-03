@@ -1,0 +1,18 @@
+{
+  "name": "kaizo",
+  "owner": {
+    "name": "Nemanja Mićović",
+    "url": "https://github.com/nmicovic"
+  },
+  "metadata": {
+    "description": "Small mods for Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "neongai",
+      "source": "./neongai",
+      "description": "A neon synthwave scene that shows what Claude is doing.",
+      "version": "0.1.0"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+# Private research and planning: never published
+notes/
+.claude/CLAUDE.md
+.claude/settings.local.json
+
+# Type files Claude Code writes into a mod folder each time it loads it
+**/.claude-plugin/types/
+
+node_modules/
+.DS_Store
