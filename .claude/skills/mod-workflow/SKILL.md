@@ -14,6 +14,7 @@ For the mod API itself, also load the built-in `plugin-authoring` skill. The fac
 ## 2. Write it
 - Logic that can be pure goes in `hooks/*.ts` with no `$`. `register.tsx` only connects events to it.
 - Read time from `$.clock.now()`, not `Date.now()`, so tests can move it.
+- Commands: accept the words people will try (`list`, `help`), and make every error say how to see the options. In docs, write the exact command and keep verbs away from it: "`/neongai scene` lists them" was typed as `/neongai scene lists`.
 - Values a drawing reads belong in `$.state`, declared in `types/index.d.ts`. The values must be written out inside `interface PluginState { <mod>: { ... } }`. The file may not import anything, and must export at least one type of its own.
 
 ## 3. Check it
@@ -32,9 +33,12 @@ Tests can't show what a person sees. Open the mod in a hidden Claude Code window
 
 To compare many states without Claude Code, paint frames offline and render them:
 ```
-bun preview.ts | python3 .claude/skills/mod-workflow/scripts/cells-to-png.py --cells 179x6 /tmp/preview.png
+bun neongai/tools/preview.ts skyline 179 6 | python3 .claude/skills/mod-workflow/scripts/cells-to-png.py --cells 179x6 /tmp/preview.png
 ```
-`preview.ts` is a throwaway script in your scratch space. It calls the mod's pure painter (for neongai, `paint()` from `neongai/hooks/paint.ts`) and prints one base64 `cells` string per line. The PNG rounds colors to #RGB, as the Raster does.
+- A mod with a painter keeps a `tools/preview.ts` like neongai's. It calls the pure painter and prints one base64 `cells` string per line; Claude Code never loads `tools/`.
+- Don't keep such scripts in the session scratchpad: it is wiped between days.
+- The PNG rounds colors to #RGB, as the Raster does.
+- Try each scene in each shape it might be drawn in (neongai: the 6-row strip and the tall pane). A scene that looks right in one can be unreadable in the other.
 
 ## 5. Before you finish
 - Learned something that would have saved time? Write it down now: API facts go in `.claude/rules/mod-api.md`, testing facts in `.claude/rules/mod-testing.md`, and better steps in this skill or a new one.

@@ -20,7 +20,8 @@ Learned the hard way. The API changes between releases, so recheck against the g
 - Size content from `e.props.bodyColumns` and `e.props.scroll.bodyRows`. `e.viewport.rows` is the whole screen.
 - The pane's frame stays Claude Code's gray `#262626`: the left divider and the frame's own rows, which `bodyRows` already leaves out (2.1.289 documents them: an inline border's two, the tab row while one shows, a docked pane's row for the ✕). More rows than `bodyRows` just scroll the bottom row away.
 - A pane above the prompt (narrow terminal) is unmounted while a dialog is open; a docked pane stays. Blits to an unmounted pane are refused, so slow down instead of painting every frame.
-- The Raster rounds colors to #RGB (16 levels per channel); Text keeps 24-bit. A Raster cell holds one width-1 character, so turn user text into plain ASCII first.
+- The Raster rounds colors to #RGB (16 levels per channel); Text keeps 24-bit. A Raster cell holds one width-1 character, so turn user text into plain ASCII first. Half-width katakana (U+FF66-FF9D) and braille (U+2800-28FF) pass the check (2.1.289); whether the person's font has them is another matter.
+- Because of the #RGB rounding, a smooth dark gradient can pass through an odd hue: navy to purple rounds to a dull red in the middle. Step dark backgrounds through colors that are already multiples of 17.
 - `$.ui.invalidate('ui.render')` redraws every component the mod hooks (an open question dialog too), not only its pane.
 - On desktop `'Raster' in $.ui.resolve(e)` is true but draws nothing: check `e.surface === 'terminal'`.
 - Inside tmux, Claude Code draws 256 colors unless started with `CLAUDE_CODE_TMUX_TRUECOLOR=1`. To check what reaches the screen, count `38;2;` against `38;5;` codes in `tmux capture-pane -e -p`.
