@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing'
 
 import { SCENES, paint } from '../hooks/paint'
-import type { SceneId } from '../hooks/paint'
+import type { SceneId, View } from '../hooks/paint'
 import { MODES, addSign, hudLine, newSim, plain, step } from '../hooks/signals'
 import type { Mode, Notes, SignKind } from '../hooks/signals'
 
@@ -9,9 +9,28 @@ const NOTES: Notes = { mode: 'tool', ctx: 63, last: 'Bash npm test', tools: 7, e
 const MODE_LIST = Object.keys(MODES) as Mode[]
 const KINDS: SignKind[] = ['read', 'edit', 'bash', 'web', 'agent', 'fail']
 const SCENE_LIST = Object.keys(SCENES) as SceneId[]
-// Where each scene is drawn: the side pane, and the band above the prompt.
-const SIZE: Record<SceneId, [number, number]> = { sunset: [62, 45], skyline: [179, 6] }
+// The two places a scene is drawn: the strip above the prompt and the side pane.
+const SIZE: Record<View, [number, number]> = { strip: [179, 6], pane: [62, 45] }
 const base64Length = (cells: number) => Math.ceil((cells * 12) / 3) * 4
+
+/** The code points of a frame's cells, read back out of the base64. */
+function codePoints(cells: string) {
+  const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+  const bytes: number[] = []
+  for (let i = 0; i < cells.length; i += 4) {
+    const n = [0, 1, 2, 3].reduce((acc, k) => (acc << 6) | Math.max(0, ALPHA.indexOf(cells[i + k] ?? 'A')), 0)
+    bytes.push((n >> 16) & 255, (n >> 8) & 255, n & 255)
+  }
+  const out: number[] = []
+  for (let at = 0; at + 3 < bytes.length; at += 12) out.push((bytes[at] ?? 0) | ((bytes[at + 1] ?? 0) << 8) | ((bytes[at + 2] ?? 0) << 16))
+  return out
+}
+
+// One width-1 character per cell: the half block, plain ASCII, half-width
+// katakana, braille dots, and the status line's ◢ ▸ · …
+const isNarrow = (cp: number) =>
+  cp === 0x2580 || (cp >= 0x20 && cp <= 0x7E) || (cp >= 0xFF66 && cp <= 0xFF9D) || (cp >= 0x2801 && cp <= 0x28FF) ||
+  [0x25E2, 0x25B8, 0xB7, 0x2026].includes(cp)
 
 describe('paint', () => {
   for (const scene of SCENE_LIST) {
@@ -21,10 +40,12 @@ describe('paint', () => {
       }
     })
 
-    test(`${scene}: stays under the 1024 color pairs a Raster paints at once`, () => {
+    for (const view of SCENES[scene].fits) {
+    test(`${scene} in the ${view}: stays under the 1024 color pairs, one narrow character per cell`, () => {
       const sim = newSim(40)
-      const [cols, rows] = SIZE[scene]
+      const [cols, rows] = SIZE[view]
       let most = 0
+      let wide = 0
       for (let frame = 0; frame < 12 * 60; frame++) {
         const t = frame / 12
         const mode = MODE_LIST[Math.floor(frame / 120) % MODE_LIST.length]!
@@ -32,13 +53,16 @@ describe('paint', () => {
         if (frame % 19 === 0) addSign(sim, KINDS[frame % KINDS.length]!)
         if (frame % 100 === 0) sim.glitchUntil = t + .9
         if (mode === 'done') sim.doneUntil = t + 1
-        most = Math.max(most, paint(scene, sim, { ...NOTES, mode }, t, cols, rows).pairs)
+        const painted = paint(scene, sim, { ...NOTES, mode }, t, cols, rows)
+        most = Math.max(most, painted.pairs)
+        if (frame % 60 === 0) wide += codePoints(painted.cells).filter(cp => !isNarrow(cp)).length
       }
       expect(most).toBeLessThan(1024)
+      expect(wide).toBe(0)
     })
 
-    test(`${scene}: the context, a tool call and "needs you" each change the picture`, () => {
-      const [cols, rows] = SIZE[scene]
+    test(`${scene} in the ${view}: the context, a tool call and "needs you" each change the picture`, () => {
+      const [cols, rows] = SIZE[view]
       const frame = (ctx: number, mode: Mode, withSign = false) => {
         const sim = newSim(ctx)
         if (withSign) {
@@ -51,6 +75,7 @@ describe('paint', () => {
       expect(frame(40, 'tool', true)).not.toBe(frame(40, 'tool'))
       expect(frame(40, 'waiting')).not.toBe(frame(40, 'tool'))
     })
+    }
   }
 })
 

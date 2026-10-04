@@ -3,7 +3,7 @@
 // sinks and reddens as the context fills, a sign drives past for each tool
 // call, and the car's lights say whose turn it is.
 
-import { get, glitch, mix, put, sparkles } from '../frame'
+import { get, glitch, hash, mix, put, sparkles } from '../frame'
 import type { Frame } from '../frame'
 import { SIGN_COLORS, clamp } from '../signals'
 import type { Mode, RGB, Sim } from '../signals'
@@ -26,15 +26,6 @@ const CAR = [
   'tbbbbbbbbbbh',
   '.kk......kk.',
 ]
-
-/** A cheap repeatable hash in [0, 1): the same building always gets the same shape. */
-function hash(n: number) {
-  let x = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b)
-  x ^= x >>> 13
-  x = Math.imul(x, 0xc2b2ae35)
-  x ^= x >>> 16
-  return (x >>> 0) / 4294967296
-}
 
 /** One row of buildings, `scroll` pixels along; windows come and go every few seconds. */
 function buildings(f: Frame, scroll: number, base: number, minH: number, maxH: number, slot: number, seed: number, body: RGB, edge: RGB | null, rate: number, t: number) {

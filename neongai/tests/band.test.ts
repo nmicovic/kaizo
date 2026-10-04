@@ -2,6 +2,9 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
+import { SCENES, fits } from '../hooks/paint'
+import type { SceneId } from '../hooks/paint'
+
 const band = (isWorking: boolean, hasSurvey = false) => ({
   hasSurvey,
   isWorking,
@@ -77,4 +80,51 @@ test('a new session brings the strip back if it was on', async ($, on) => {
   on('session.start', () => ({ cwd: '/tmp' }))
   await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true })
   expect(await strip($, true)).toMatchObject({ columns: 179, rows: 6 })
+})
+
+test('/neongai scene code-rain turns the strip into code rain', async ($, on) => {
+  world(on)
+  const { text } = await $.command.run({ command: 'neongai', args: 'scene code-rain', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 179 } })
+  expect(text).toContain('The strip now shows code-rain')
+  // The engine checks every character of the drawing: half-width katakana pass.
+  expect(await strip($, true)).toMatchObject({ columns: 179, rows: 6 })
+})
+
+test('/neongai scene sunset points to the side view instead', async ($, on) => {
+  world(on)
+  const { text } = await $.command.run({ command: 'neongai', args: 'scene sunset', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 179 } })
+  expect(text).toContain('/neongai pane sunset')
+})
+
+test('/neongai scene lists the scenes', async ($, on) => {
+  world(on)
+  const { text } = await $.command.run({ command: 'neongai', args: 'scene', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 179 } })
+  expect(text).toContain('code-rain')
+  expect(text).toContain('side view only')
+})
+
+test('switching scenes shows the new look for a moment even while idle', async ($, on) => {
+  const clock = world(on)
+  await neongai($)
+  await clock.advance(5000)
+  expect(await strip($, false)).toMatchObject({ rows: 1 })
+  await $.command.run({ command: 'neongai', args: 'scene code-rain', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 179 } })
+  expect(await strip($, false)).toMatchObject({ rows: 6 })
+})
+
+test('/neongai scene list and other natural words show the list too', async ($, on) => {
+  world(on)
+  for (const word of ['list', 'lists', 'help']) {
+    const { text } = await $.command.run({ command: 'neongai', args: `scene ${word}`, origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 179 } })
+    expect(text).toContain('neongai scenes')
+  }
+})
+
+test('every scene that fits the strip draws there, every character accepted by the engine', async ($, on) => {
+  world(on)
+  for (const scene of (Object.keys(SCENES) as SceneId[]).filter(one => fits(one, 'strip'))) {
+    const { text } = await $.command.run({ command: 'neongai', args: `scene ${scene}`, origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 179 } })
+    expect(text).toContain(`The strip now shows ${scene}`)
+    expect(await strip($, true)).toMatchObject({ columns: 179, rows: 6 })
+  }
 })

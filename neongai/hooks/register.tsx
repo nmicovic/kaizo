@@ -1,8 +1,8 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { paint } from './paint'
-import type { SceneId } from './paint'
+import { SCENES, fits, isScene, paint } from './paint'
+import type { SceneId, View } from './paint'
 import { addSign, newSim, step } from './signals'
 import type { Mode, Notes, Sign, SignKind } from './signals'
 
@@ -67,6 +67,7 @@ const target = (scene: SceneId, key: string, requestId = ''): Target =>
   ({ scene, key, requestId, cols: 0, rows: 0, last: '', isBusy: false, isHidden: false, hiddenTicks: 0 })
 const pane = target('sunset', 'scene', PANE)
 const band = target('skyline', 'strip')
+const DEFAULT_SCENE: Record<View, SceneId> = { strip: 'skyline', pane: 'sunset' }
 
 // The scene and its timer. Time comes from $.clock, so tests can move it.
 let epoch: number | undefined
@@ -192,6 +193,42 @@ async function setBand($: EngineInterface, isOn: boolean) {
   }
 }
 
+/** Shows `scene` in a view from the next frame on, and remembers it for the next session. */
+async function setScene($: EngineInterface, view: View, scene: SceneId) {
+  const at = view === 'strip' ? band : pane
+  at.scene = scene
+  at.last = ''
+  await $.store.set(`scene.${view}`, scene)
+}
+
+async function restoreScene($: EngineInterface, view: View) {
+  const saved = await $.store.get(`scene.${view}`)
+  const scene = typeof saved === 'string' && isScene(saved) && fits(saved, view) ? saved : DEFAULT_SCENE[view]
+  ;(view === 'strip' ? band : pane).scene = scene
+}
+
+/** `/neongai scene`: the list, or switching the strip's scene. */
+async function sceneCommand($: EngineInterface, name: string) {
+  const names = Object.keys(SCENES) as SceneId[]
+  // The words people try when they want the list.
+  if (!name || ['list', 'lists', 'ls', 'help', '?'].includes(name)) {
+    const where = (scene: SceneId) => SCENES[scene].fits.length === 2 ? 'strip and side view' : 'side view only'
+    const width = Math.max(...names.map(one => one.length))
+    return [
+      `neongai scenes (the strip shows ${band.scene}, the side view ${pane.scene}):`,
+      ...names.map(one => `  ${one.padEnd(width)}  ${SCENES[one].about} (${where(one)})`),
+      '/neongai scene <name> changes the strip. /neongai pane <name> opens the side view with that scene.',
+    ].join('\n')
+  }
+  if (!isScene(name)) return `There's no scene called ${name}. Try ${names.join(', ')}, or /neongai scene to see them all.`
+  if (!fits(name, 'strip')) return `${name} needs the tall side view: try /neongai pane ${name}.`
+  await setScene($, 'strip', name)
+  // Grow the strip for a moment, so the new look shows even while Claude is idle.
+  if (isBandShown) await wake($, INTRO_MS)
+  else await setBand($, true)
+  return `The strip now shows ${name}: ${SCENES[name].about}.`
+}
+
 async function hintTmux($: EngineInterface) {
   if (isHintDone) return
   isHintDone = true
@@ -204,10 +241,12 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'neongai',
-      description: 'Show or hide a neon strip above the prompt that shows what Claude is doing (pane: the big side view)',
-      argumentHint: '[pane]',
+      description: 'Show or hide a neon strip above the prompt that shows what Claude is doing (scene: change its look, pane: the big side view)',
+      argumentHint: '[scene <name> | pane <scene>]',
     })
     await update($, isBandAwake, () => false)
+    await restoreScene($, 'strip')
+    await restoreScene($, 'pane')
     if ((await $.store.get('band')) === true) {
       isBandShown = true
       await update($, isBandOn, () => true)
@@ -223,10 +262,14 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'neongai' }, async ($, e) => {
-    const verb = e.args.trim().toLowerCase()
+    const [verb = '', name = ''] = e.args.trim().toLowerCase().split(/\s+/)
+    if (verb === 'scene') return { text: await sceneCommand($, name) }
     if (verb === 'pane') {
+      if (name && !isScene(name)) return { text: `There's no scene called ${name}. Try ${Object.keys(SCENES).join(', ')}.` }
       const shown = (await $.ui.panes()).find(one => one.id === PANE)
+      if (name) await setScene($, 'pane', name as SceneId)
       if (shown?.isShown) {
+        if (name) return { text: `The side view now shows ${name}: ${SCENES[name as SceneId].about}.` }
         await $.ui.close({ id: PANE })
         return { text: 'The neongai side view is closed.' }
       }
@@ -234,9 +277,9 @@ export const register: Register = on => {
       isPaneOpen = true
       start($)
       await hintTmux($)
-      return { text: 'The neongai side view is open. /neongai pane closes it.' }
+      return { text: `The neongai side view is open, showing ${pane.scene}. /neongai pane closes it.` }
     }
-    if (verb) return { text: '/neongai shows or hides the strip above the prompt. /neongai pane opens the big side view.' }
+    if (verb) return { text: '/neongai shows or hides the strip above the prompt. /neongai scene lists the looks. /neongai pane opens the big side view.' }
 
     const isOn = !(await read($, isBandOn))
     await setBand($, isOn)

@@ -1,12 +1,27 @@
 // The canvas every scene paints on: a picture of `cols` x 2*(rows-1) pixels
 // above a one-row status line. finish() packs it into Raster cells: each cell
 // is `▀` with the top pixel as its foreground and the bottom pixel as its
-// background, and the last row is the status line as text cells.
+// background, and the last row is the status line as text cells. A scene can
+// also put a character in a cell (glyph()), or braille dots (dot(), line()):
+// 2 x 4 fine dots per cell, for thin lines and stars. Either is drawn over the
+// cell's top pixel as its background, a character winning over dots.
 
 import { clamp, hudLine } from './signals'
 import type { Notes, RGB, Sim } from './signals'
 
-export type Frame = { W: number; H: number; rows: number; px: Uint32Array; words: Uint32Array }
+export type Frame = {
+  W: number
+  H: number
+  rows: number
+  px: Uint32Array
+  /** A character per scene cell, 0 for none; its color is in glyphFg. */
+  glyphs: Uint32Array
+  glyphFg: Uint32Array
+  /** Braille dots per scene cell (one bit per dot), and their color. */
+  dots: Uint8Array
+  dotFg: Uint32Array
+  words: Uint32Array
+}
 
 const HUD_BG = 0x12002A
 const frames = new Map<string, Frame>()
@@ -18,7 +33,13 @@ export function frameFor(cols: number, rows: number): Frame {
   if (!f) {
     if (frames.size >= 4) frames.clear()
     const H = Math.max(0, (rows - 1) * 2)
-    f = { W: cols, H, rows, px: new Uint32Array(cols * H), words: new Uint32Array(cols * rows * 3) }
+    const cells = cols * Math.max(0, rows - 1)
+    f = {
+      W: cols, H, rows, px: new Uint32Array(cols * H),
+      glyphs: new Uint32Array(cells), glyphFg: new Uint32Array(cells),
+      dots: new Uint8Array(cells), dotFg: new Uint32Array(cells),
+      words: new Uint32Array(cols * rows * 3),
+    }
     frames.set(id, f)
   }
   return f
@@ -39,6 +60,42 @@ export function put(f: Frame, x: number, y: number, c: RGB) {
 }
 
 export const get = (f: Frame, x: number, y: number) => unpack(f.px[y * f.W + x] ?? 0)
+
+/** Puts a character in a scene cell (column, row), drawn in color `c`. It must be one width-1 character. */
+export function glyph(f: Frame, col: number, row: number, ch: string, c: RGB) {
+  if (col < 0 || row < 0 || col >= f.W || row >= f.rows - 1) return
+  const i = row * f.W + col
+  f.glyphs[i] = ch.codePointAt(0) ?? 0x20
+  f.glyphFg[i] = pack(c)
+}
+
+// Braille bit for each dot of a cell, by column (0, 1) then row (0 to 3).
+const BRAILLE = [[0x01, 0x02, 0x04, 0x40], [0x08, 0x10, 0x20, 0x80]] as const
+
+/** Lights one braille dot. Dots run 2 per cell across and 4 per cell down. */
+export function dot(f: Frame, x: number, y: number, c: RGB) {
+  x = Math.round(x)
+  y = Math.round(y)
+  if (x < 0 || y < 0 || x >= f.W * 2 || y >= (f.rows - 1) * 4) return
+  const i = (y >> 2) * f.W + (x >> 1)
+  f.dots[i] = (f.dots[i] ?? 0) | (BRAILLE[x & 1]?.[y & 3] ?? 0)
+  f.dotFg[i] = pack(c)
+}
+
+/** A line of braille dots, in dot coordinates. */
+export function line(f: Frame, x0: number, y0: number, x1: number, y1: number, c: RGB) {
+  const steps = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))))
+  for (let k = 0; k <= steps; k++) dot(f, x0 + ((x1 - x0) * k) / steps, y0 + ((y1 - y0) * k) / steps, c)
+}
+
+/** A cheap repeatable hash in [0, 1): the same input always gives the same shape. */
+export function hash(n: number) {
+  let x = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b)
+  x ^= x >>> 13
+  x = Math.imul(x, 0xc2b2ae35)
+  x ^= x >>> 16
+  return (x >>> 0) / 4294967296
+}
 
 /** Sparkles in the sky at the end of a turn. */
 export function sparkles(f: Frame, sim: Sim, t: number, skyBottom: number) {
@@ -77,10 +134,14 @@ export function finish(f: Frame, notes: Notes) {
   for (let row = 0; row < f.rows - 1; row++) {
     for (let x = 0; x < f.W; x++) {
       const top = f.px[row * 2 * f.W + x] ?? 0, bot = f.px[(row * 2 + 1) * f.W + x] ?? 0
-      f.words[i++] = 0x2580
-      f.words[i++] = top
-      f.words[i++] = bot
-      pairs.add(top * 0x1000000 + bot)
+      const mask = f.dots[row * f.W + x] ?? 0
+      const ch = f.glyphs[row * f.W + x] || (mask ? 0x2800 + mask : 0)
+      const fg = f.glyphs[row * f.W + x] ? f.glyphFg[row * f.W + x] ?? 0 : mask ? f.dotFg[row * f.W + x] ?? 0 : top
+      const bg = ch ? top : bot
+      f.words[i++] = ch || 0x2580
+      f.words[i++] = fg
+      f.words[i++] = bg
+      pairs.add(fg * 0x1000000 + bg)
     }
   }
   const line = hudLine(notes, f.W)

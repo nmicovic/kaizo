@@ -19,8 +19,8 @@ export type Notes = {
   elapsed: string | null
 }
 
-/** One sign per tool call: `z` runs from 9 (just put up) down to 0.65 (gone). */
-export type Sign = { z: number; side: number; kind: SignKind }
+/** One sign per tool call: `z` runs from 9 (just put up) down to 0.65 (gone). `id` counts up, so a scene can give each its own place. */
+export type Sign = { id: number; z: number; side: number; kind: SignKind }
 
 /** The scene's own motion. Times are scene seconds, as the painters get `t`. */
 export type Sim = {
@@ -29,6 +29,8 @@ export type Sim = {
   ctxShown: number
   side: number
   signs: Sign[]
+  /** Signs put up so far: the next sign's id. */
+  count: number
   glitchUntil: number
   doneUntil: number
   flashUntil: number
@@ -55,7 +57,7 @@ const HUD_MUTED = 0xA3A3A3
 export const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
 
 export function newSim(ctx: number | null = null): Sim {
-  return { speed: MODES.idle.speed, dist: 0, ctxShown: ctx ?? 30, side: 1, signs: [], glitchUntil: 0, doneUntil: 0, flashUntil: 0 }
+  return { speed: MODES.idle.speed, dist: 0, ctxShown: ctx ?? 30, side: 1, signs: [], count: 0, glitchUntil: 0, doneUntil: 0, flashUntil: 0 }
 }
 
 /** Moves the scene on by `dt` seconds: the speed eases to the mode's. */
@@ -72,7 +74,7 @@ export function step(sim: Sim, mode: Mode, ctx: number | null, dt: number) {
 /** Puts up a sign far down the road, on the other side from the last one. */
 export function addSign(sim: Sim, kind: SignKind): Sign {
   sim.side = -sim.side
-  const sign: Sign = { z: 9, side: sim.side, kind }
+  const sign: Sign = { id: sim.count++, z: 9, side: sim.side, kind }
   sim.signs.push(sign)
   if (sim.signs.length > 12) sim.signs.shift()
   return sign
