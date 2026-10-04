@@ -9,7 +9,7 @@ This repository is public: anyone can read what gets committed, and pushed histo
 
 1. **Checks pass.** Run tsc, `claude plugin validate <mod>`, `claude plugin validate .` and `claude plugin test <mod>`. If the change affects what people see, also look at it on screen (`mod-workflow`, step 4).
 2. **Version, when users will notice.** Bump it in both `<mod>/.claude-plugin/plugin.json` and the mod's entry in `.claude-plugin/marketplace.json`: the patch number for fixes, the minor number for new features.
-3. **Docs.** The mod's `README.md` describes what users now see, and the mod table in the root `README.md` is current.
+3. **Docs.** The mod's `README.md` describes what users now see, and the mod table in the root `README.md` is current. If anything about how a scene looks changed, regenerate **all** the GIFs: `neongai/tools/gifs.sh` rebuilds them from the code and fails if one is stale or missing.
 4. **Safety review.**
    - Stage files by name, never `git add -A`.
    - Read `git status` and the whole `git diff --cached`.

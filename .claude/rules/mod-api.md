@@ -22,6 +22,8 @@ Learned the hard way. The API changes between releases, so recheck against the g
 - A pane above the prompt (narrow terminal) is unmounted while a dialog is open; a docked pane stays. Blits to an unmounted pane are refused, so slow down instead of painting every frame.
 - The Raster rounds colors to #RGB (16 levels per channel); Text keeps 24-bit. A Raster cell holds one width-1 character, so turn user text into plain ASCII first. Half-width katakana (U+FF66-FF9D) and braille (U+2800-28FF) pass the check (2.1.289); whether the person's font has them is another matter.
 - Because of the #RGB rounding, a smooth dark gradient can pass through an odd hue: navy to purple rounds to a dull red in the middle. Step dark backgrounds through colors that are already multiples of 17.
+- **The resolution ceiling.** In characters, a cell gives at most 2x4 dots (braille, one color plus background) or 2x2 solid blocks (quadrants `▘▝▖▗▚▞▙▛▜▟`, two colors). The finer sextant and octant blocks are outside the BMP, so the Raster refuses them. Sharper still means the `Image` element, which sends real pixels but only over the kitty graphics protocol: Ghostty or kitty, not Windows Terminal. The intermission mod does this (a 640x360 `rgb` frame through `shm`, swapped with `$.ui.blit`).
+- Drawing at a higher resolution shrinks everything sized in pixels. Size objects in cells if a scene should work at more than one resolution.
 - `$.ui.invalidate('ui.render')` redraws every component the mod hooks (an open question dialog too), not only its pane.
 - On desktop `'Raster' in $.ui.resolve(e)` is true but draws nothing: check `e.surface === 'terminal'`.
 - Inside tmux, Claude Code draws 256 colors unless started with `CLAUDE_CODE_TMUX_TRUECOLOR=1`. To check what reaches the screen, count `38;2;` against `38;5;` codes in `tmux capture-pane -e -p`.
@@ -42,4 +44,5 @@ Learned the hard way. The API changes between releases, so recheck against the g
 
 ## Timers
 - `$.clock.every(83)` plus `$.ui.blit` holds 12 frames a second for about 2 ms a frame.
+- Code in a hooks module ran about 7 times slower than the same code in bun (2.1.288), so budget per-frame work from a bun benchmark times 7.
 - Claude Code pauses every mod's timers for 1.1 to 1.6 s roughly every 34 s, and `$.clock.after` runs late by as much. Not a bug in the mod.
