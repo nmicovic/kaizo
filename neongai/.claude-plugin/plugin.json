@@ -1,10 +1,11 @@
 {
   "name": "neongai",
-  "version": "0.1.0",
-  "description": "A neon synthwave scene that shows what Claude is doing.",
+  "version": "0.2.0",
+  "description": "A neon city at night that shows what Claude is doing.",
   "author": {
     "name": "Nemanja Mićović",
     "url": "https://github.com/nmicovic"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "types": "./types/index.d.ts"
 }

@@ -11,8 +11,8 @@
     {
       "name": "neongai",
       "source": "./neongai",
-      "description": "A neon synthwave scene that shows what Claude is doing.",
-      "version": "0.1.0"
+      "description": "A neon city at night that shows what Claude is doing.",
+      "version": "0.2.0"
     }
   ]
 }
