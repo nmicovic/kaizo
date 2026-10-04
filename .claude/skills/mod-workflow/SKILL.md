@@ -31,6 +31,7 @@ Tests can't show what a person sees. Open the mod in a hidden Claude Code window
 ```
 - This writes `/tmp/look.txt` (the text), `/tmp/look.ansi` (with colors) and `/tmp/look.png` (every cell drawn as pixels; read the PNG to look at it).
 - It needs tmux. Local slash commands cost no tokens.
+- In your own session the edits load when your turn ends, or with `/reload-plugins`.
 - If the command changed a saved setting (neongai remembers whether its strip is on), run it again in a second `look.sh` call to switch it back before you finish.
 
 To compare many states without Claude Code, paint frames offline and render them:
