@@ -7,7 +7,7 @@
 // The characters are half-width katakana (U+FF66-FF9D): one cell wide, but not
 // every terminal font has them, so the README says how to check.
 
-import { glyph, hash, mix, put } from '../frame'
+import { block, glyph, hash, mix } from '../frame'
 import type { Frame } from '../frame'
 import { SIGN_COLORS, clamp } from '../signals'
 import type { Mode, RGB, SignKind, Sim } from '../signals'
@@ -29,8 +29,8 @@ const ROWS_PER_UNIT = 6
 const LABEL: Record<SignKind, string> = { read: 'READ', edit: 'EDIT', bash: 'BASH', web: 'WEB', agent: 'AGENT', fail: 'FAIL' }
 
 export function codeRain(f: Frame, sim: Sim, mode: Mode, t: number) {
-  const cols = f.W, rows = f.rows - 1
-  for (let y = 0; y < f.H; y++) for (let x = 0; x < cols; x++) put(f, x, y, BG)
+  const cols = f.cols, rows = f.rows - 1
+  block(f, 0, 0, f.W, f.H, BG)
 
   const tick = Math.floor(t * 8)
   const char = (n: number) => GLYPHS[Math.floor(hash(n) * GLYPHS.length)] ?? '0'

@@ -12,7 +12,7 @@
       "name": "neongai",
       "source": "./neongai",
       "description": "A neon city at night that shows what Claude is doing.",
-      "version": "0.3.0"
+      "version": "0.4.0"
     }
   ]
 }

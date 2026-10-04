@@ -90,17 +90,18 @@ test('/neongai scene code-rain turns the strip into code rain', async ($, on) =>
   expect(await strip($, true)).toMatchObject({ columns: 179, rows: 6 })
 })
 
-test('/neongai scene sunset points to the side view instead', async ($, on) => {
+test('/neongai scene with an unknown name says how to see them all', async ($, on) => {
   world(on)
-  const { text } = await $.command.run({ command: 'neongai', args: 'scene sunset', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 179 } })
-  expect(text).toContain('/neongai pane sunset')
+  const { text } = await $.command.run({ command: 'neongai', args: 'scene sunrise', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 179 } })
+  expect(text).toContain("There's no scene called sunrise")
+  expect(text).toContain('/neongai scene to see them all')
 })
 
 test('/neongai scene lists the scenes', async ($, on) => {
   world(on)
   const { text } = await $.command.run({ command: 'neongai', args: 'scene', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 179 } })
   expect(text).toContain('code-rain')
-  expect(text).toContain('side view only')
+  expect(text).toContain('sunset')
 })
 
 test('switching scenes shows the new look for a moment even while idle', async ($, on) => {

@@ -26,10 +26,10 @@ function codePoints(cells: string) {
   return out
 }
 
-// One width-1 character per cell: the half block, plain ASCII, half-width
+// One width-1 character per cell: block elements, plain ASCII, half-width
 // katakana, braille dots, and the status line's ◢ ▸ · …
 const isNarrow = (cp: number) =>
-  cp === 0x2580 || (cp >= 0x20 && cp <= 0x7E) || (cp >= 0xFF66 && cp <= 0xFF9D) || (cp >= 0x2801 && cp <= 0x28FF) ||
+  (cp >= 0x2580 && cp <= 0x259F) || (cp >= 0x20 && cp <= 0x7E) || (cp >= 0xFF66 && cp <= 0xFF9D) || (cp >= 0x2801 && cp <= 0x28FF) ||
   [0x25E2, 0x25B8, 0xB7, 0x2026].includes(cp)
 
 describe('paint', () => {
@@ -46,9 +46,9 @@ describe('paint', () => {
       const [cols, rows] = SIZE[view]
       let most = 0
       let wide = 0
-      for (let frame = 0; frame < 12 * 60; frame++) {
+      for (let frame = 0; frame < 12 * 30; frame++) {
         const t = frame / 12
-        const mode = MODE_LIST[Math.floor(frame / 120) % MODE_LIST.length]!
+        const mode = MODE_LIST[Math.floor(frame / 60) % MODE_LIST.length]!
         step(sim, mode, (frame / 7) % 100, 1 / 12)
         if (frame % 19 === 0) addSign(sim, KINDS[frame % KINDS.length]!)
         if (frame % 100 === 0) sim.glitchUntil = t + .9

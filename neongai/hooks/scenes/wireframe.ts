@@ -1,11 +1,11 @@
-// Spinning 3D wireframes drawn in braille dots, Tron style. It works in the
+// Spinning 3D wireframes in one-pixel lines, Tron style. It works in the
 // strip and the pane. The solid spins at Claude's pace and stops, its edges
 // blinking red, when Claude needs you. The ring around it is lit for the
 // context left. Each tool call is a small cube in its kind's color that orbits
 // once along the ring, and a finished turn bursts the solid into points that
 // fly back together.
 
-import { dot, glitch, hash, line, mix, put, sparkles } from '../frame'
+import { S, block, glitch, hash, line, mix, put, sparkles } from '../frame'
 import type { Frame } from '../frame'
 import { SIGN_COLORS, clamp } from '../signals'
 import type { Mode, RGB, Sim } from '../signals'
@@ -54,7 +54,7 @@ function turn([x, y, z]: V3, a: number, b: number): V3 {
 
 export function wireframe(f: Frame, sim: Sim, mode: Mode, t: number) {
   const { W, H } = f
-  const wd = W * 2, hd = (f.rows - 1) * 4
+  const wd = W, hd = H
   const cx = wd / 2, cy = hd / 2
   const night = clamp(sim.ctxShown / 100, 0, 1)
   const pulse = mode === 'waiting' ? .5 + .5 * Math.sin(t * 7) : 0
@@ -62,11 +62,11 @@ export function wireframe(f: Frame, sim: Sim, mode: Mode, t: number) {
 
   // background: a dark gradient with a few stars. It steps per cell row, so a
   // cell holding dots (drawn over its top pixel) matches the cells beside it.
-  for (let y = 0; y < H; y++) {
-    const c = BG[Math.min(BG.length - 1, Math.floor((Math.floor(y / 2) / Math.max(1, f.rows - 1)) * BG.length))] ?? BG_BOTTOM
-    for (let x = 0; x < W; x++) put(f, x, y, c)
+  for (let row = 0; row < f.rows - 1; row++) {
+    const c = BG[Math.min(BG.length - 1, Math.floor((row / Math.max(1, f.rows - 1)) * BG.length))] ?? BG_BOTTOM
+    block(f, 0, row * 4, W, 4, c)
   }
-  for (let i = 0; i < W / 4; i++) {
+  for (let i = 0; i < W / S / 4; i++) {
     if (Math.sin(t * (1 + hash(i)) + i) > .2) put(f, hash(i * 3 + 1) * W, hash(i * 3 + 2) * H, [120, 120, 170])
   }
 
@@ -87,7 +87,7 @@ export function wireframe(f: Frame, sim: Sim, mode: Mode, t: number) {
       const a = (k / steps) * Math.PI * 2
       if ((Math.sin(a) > 0) !== isFront) continue
       const isLit = k / steps < 1 - night
-      dot(f, cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, isLit ? mix(RING, ALARM, pulse) : RING_OFF)
+      put(f, cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, isLit ? mix(RING, ALARM, pulse) : RING_OFF)
     }
   }
   ringDot(false)
@@ -99,7 +99,7 @@ export function wireframe(f: Frame, sim: Sim, mode: Mode, t: number) {
   let color = mix(EDGE, ALARM, pulse)
   if (isFailing) color = ALARM
   if (burst > .25) {
-    for (const p of pts) dot(f, p[0], p[1], mix(color, [255, 255, 255], .4))
+    for (const p of pts) put(f, p[0], p[1], mix(color, [255, 255, 255], .4))
   } else {
     const edges = ICO_EDGES.map(([i, j]) => [pts[i]!, pts[j]!] as const).sort((e1, e2) => e2[0][2] + e2[1][2] - e1[0][2] - e1[1][2])
     for (const [p, q] of edges) {

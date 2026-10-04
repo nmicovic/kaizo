@@ -1,10 +1,10 @@
-// A starfield seen from a ship at warp, drawn in braille dots. It works in the
+// A starfield seen from a ship at warp, in one-pixel stars and streaks. It works in the
 // strip and the pane. Stars stream past at Claude's pace and stretch into
 // streaks when it's busy. The planet ahead grows as the context fills. Each
 // tool call is a comet in its kind's color, and when Claude needs you the ship
 // drops out of warp under a red alert. A finished turn flashes.
 
-import { dot, glitch, hash, line, mix, put, sparkles } from '../frame'
+import { S, block, glitch, hash, line, mix, put, sparkles } from '../frame'
 import type { Frame } from '../frame'
 import { SIGN_COLORS, clamp } from '../signals'
 import type { Mode, RGB, Sim } from '../signals'
@@ -20,7 +20,7 @@ const ALARM: RGB = [255, 40, 50]
 
 export function warp(f: Frame, sim: Sim, mode: Mode, t: number) {
   const { W, H } = f
-  const wd = W * 2, hd = (f.rows - 1) * 4
+  const wd = W, hd = H
   const cx = wd / 2, cy = hd / 2
   const night = clamp(sim.ctxShown / 100, 0, 1)
   const pulse = mode === 'waiting' ? .5 + .5 * Math.sin(t * 7) : 0
@@ -28,23 +28,23 @@ export function warp(f: Frame, sim: Sim, mode: Mode, t: number) {
 
   // space, flashing pale at the end of a turn. It steps per cell row, so a cell
   // holding dots (drawn over its top pixel) matches the cells beside it.
-  for (let y = 0; y < H; y++) {
-    const c = mix(mix(SPACE, SPACE_LOW, Math.floor(y / 2) / Math.max(1, f.rows - 2)), [150, 160, 230], flash * flash * .45)
-    for (let x = 0; x < W; x++) put(f, x, y, c)
+  for (let row = 0; row < f.rows - 1; row++) {
+    const c = mix(mix(SPACE, SPACE_LOW, row / Math.max(1, f.rows - 2)), [150, 160, 230], flash * flash * .45)
+    block(f, 0, row * 4, W, 4, c)
   }
 
-  // the planet ahead: it grows as the context fills (pixels: 1 per cell across, 2 down)
+  // the planet ahead: it grows as the context fills
   const pr = Math.max(1, Math.min(W, H) * (.06 + .3 * night))
   const pcx = W / 2, pcy = H / 2
-  for (let y = Math.floor(pcy - pr - 2); y <= pcy + pr + 2; y++) {
-    for (let x = Math.floor(pcx - pr - 2); x <= pcx + pr + 2; x++) {
+  for (let y = Math.floor(pcy - pr - 2 * S); y <= pcy + pr + 2 * S; y++) {
+    for (let x = Math.floor(pcx - pr - 2 * S); x <= pcx + pr + 2 * S; x++) {
       const d = Math.hypot(x - pcx, y - pcy)
       if (d <= pr) put(f, x, y, mix(PLANET_DARK, PLANET_LIT, clamp(.55 - (x - pcx) / (pr * 2) - (y - pcy) / (pr * 3), 0, 1)))
-      else if (d <= pr + 1.5) put(f, x, y, mix(SPACE, AIR, .35 * (1 - (d - pr) / 1.5)))
+      else if (d <= pr + 1.5 * S) put(f, x, y, mix(SPACE, AIR, .35 * (1 - (d - pr) / (1.5 * S))))
     }
   }
-  // In dots: the planet's disc, which hides the stars behind it.
-  const isBehindPlanet = (x: number, y: number) => Math.hypot(x / 2 - pcx, y / 2 - pcy) < pr
+  // The planet's disc hides the stars behind it.
+  const isBehindPlanet = (x: number, y: number) => Math.hypot(x - pcx, y - pcy) < pr
 
   // stars: each one cycles from far (z = 1) to here (z = 0) as the ship travels
   const stars = Math.min(400, Math.round((wd * hd) / 40))
@@ -64,7 +64,7 @@ export function warp(f: Frame, sim: Sim, mode: Mode, t: number) {
       const [px, py] = at(Math.min(1, z + sim.speed * .08))
       line(f, px, py, x, y, c)
     } else {
-      dot(f, x, y, c)
+      put(f, x, y, c)
     }
   }
 
@@ -76,21 +76,17 @@ export function warp(f: Frame, sim: Sim, mode: Mode, t: number) {
     const color = SIGN_COLORS[s.kind]
     for (let k = 5; k >= 0; k--) {
       const [x, y] = head(Math.max(0, p * p - k * .025))
-      dot(f, x, y, k === 0 ? mix(color, [255, 255, 255], .4) : mix(color, SPACE, k / 7))
+      block(f, x, y, k === 0 ? S : 1, k === 0 ? S : 1, k === 0 ? mix(color, [255, 255, 255], .4) : mix(color, SPACE, k / 7))
     }
   }
 
   // red alert while Claude needs you: the edges of the view pulse red
   if (pulse || mode === 'waiting') {
     const c = mix(SPACE, ALARM, .35 + .5 * pulse)
-    for (let x = 0; x < W; x++) {
-      put(f, x, 0, c)
-      put(f, x, H - 1, c)
-    }
-    for (let y = 0; y < H; y++) {
-      put(f, 0, y, c)
-      put(f, W - 1, y, c)
-    }
+    block(f, 0, 0, W, S, c)
+    block(f, 0, H - S, W, S, c)
+    block(f, 0, 0, S, H, c)
+    block(f, W - S, 0, S, H, c)
   }
 
   sparkles(f, sim, t, H)
