@@ -1,6 +1,6 @@
 # kaizo
 
-A marketplace of small Claude Code mods. Each top-level folder is one mod, installed as `<mod>@kaizo`.
+My own marketplace for the useful things I build for Claude Code. Each top-level folder is one plugin, installed on its own as `<name>@kaizo`. Today they are mods (plugins made of hooks, like `neongai`); skills and other plugin kinds fit the same layout.
 
 ## This repository is public
 

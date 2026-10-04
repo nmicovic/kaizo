@@ -5,7 +5,7 @@
     "url": "https://github.com/nmicovic"
   },
   "metadata": {
-    "description": "Small mods for Claude Code."
+    "description": "Useful things for Claude Code, installable one by one."
   },
   "plugins": [
     {
