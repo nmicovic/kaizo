@@ -1,0 +1,6 @@
+{
+  "name": "lesson-probe",
+  "version": "0.0.1",
+  "description": "Throwaway mod for check-lessons.sh: logs classic events and timer pauses",
+  "author": { "name": "kaizo" }
+}
