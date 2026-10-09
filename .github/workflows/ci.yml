@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A new push to a PR cancels the run it replaces; pushes to main each get their own run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # The mod API changes between releases: bump this together with the api-update skill.
+  CLAUDE_CODE_VERSION: "2.1.293"
+  DISABLE_AUTOUPDATER: "1"
+  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+
+jobs:
+  plugins:
+    name: validate · test
+    # Owner/collaborator runs go to the self-hosted visas runner; fork PRs (public repo) go to GitHub-hosted
+    # runners, which the self-hosted runner refuses anyway.
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","visas"]') }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install Claude Code
+        run: |
+          npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          claude --version
+
+      - name: Validate the marketplace
+        run: claude plugin validate .
+
+      - name: Validate each plugin
+        run: |
+          for manifest in */.claude-plugin/plugin.json; do
+            claude plugin validate "./${manifest%%/*}"
+          done
+
+      - name: Test each plugin
+        run: |
+          for manifest in */.claude-plugin/plugin.json; do
+            mod="${manifest%%/*}"
+            if [ -d "$mod/tests" ]; then claude plugin test "./$mod"; fi
+          done
